@@ -191,17 +191,12 @@
                 li.dataset.id = t.id;
                 if (t.completed) { li.classList.add('done'); }
 
-                li.addEventListener('click', function () { toggleTodo(t.id); });
-
                 var delBtn = document.createElement('button');
                 delBtn.type = 'button';
                 delBtn.className = 'todo-del';
                 delBtn.textContent = '×';
+                delBtn.dataset.action = 'delete';    // 删除标记，交给父容器委托识别
                 delBtn.setAttribute('aria-label', '删除：' + t.text);
-                delBtn.addEventListener('click', function (e) {
-                    e.stopPropagation();         // 防止顺带触发 li 的点击
-                    removeTodo(t.id);
-                });
 
                 li.appendChild(delBtn);
                 list.appendChild(li);
@@ -211,6 +206,21 @@
             countEl.textContent = '共 ' + todos.length + ' 项 · 未完成 ' +
                 todos.reduce(function (n, t) { return n + (t.completed ? 0 : 1); }, 0) + ' 项';
         }
+
+        // 事件委托：整条列表只在 ul 上挂一个监听器，删除 / 切换统一在这里分流
+        list.addEventListener('click', function (e) {
+            if (!(e.target instanceof Element)) return;          // ① 防：不是元素
+            var item = e.target.closest('li');
+            if (!item || !list.contains(item)) return;           // ②③ 防：空值 / 越界
+            var id = item.dataset.id;
+            if (!id) return;                                     // ④ 防：没有 data-id
+            var delBtn = e.target.closest('[data-action="delete"]');
+            if (delBtn && item.contains(delBtn)) {
+                removeTodo(id);                                  // 删除分支
+                return;                                          // ⑤ 分流后返回
+            }
+            toggleTodo(id);
+        });
 
         // 唯一 id：同一毫秒内连续添加也不会撞号
         var seq = 0;

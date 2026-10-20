@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="计算机专业本科生的个人简历，展示专业技能、课程实践与学习计划，并包含数据驱动的待办事项应用。">
-    <title>个人简历 · V2.0 数据驱动 Todo</title>
+    <title>个人简历 · Todo V2.0（事件委托版）</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
         <div class="profile-copy">
             <p class="eyebrow">计算机专业 · 本科在读</p>
             <h1>王梓健</h1>
-            <p class="student-info">学号：2024150200 · Web编程第7周</p>
+            <p class="student-info">学号：2024150200 · Web编程第8周</p>
             <p class="intro">我是计算机专业大三学生，系统学习过计算机专业核心课程，具备编程基础。关注自然语言处理与机器学习，也在学习如何用清晰的网页呈现项目和个人经历。</p>
             <ul class="tag-list" aria-label="关注方向">
                 <li>自然语言处理</li><li>机器学习</li><li>Web 开发</li>
@@ -24,11 +24,11 @@
     <!-- 主区域在宽屏为内容区与侧栏，窄屏改为纵向排列。 -->
     <main class="resume-layout">
         <div class="resume-content">
-            <!-- Week 7: V2.0 数据驱动 Todo 应用。DOM 是 todos 数组的投影；脚本见 body 末尾。 -->
+            <!-- Week 8: 在第 7 周 V2.0 基础上改用事件委托。DOM 仍由 render() 投影；脚本见 body 末尾。 -->
             <section class="todo-section">
                 <div class="section-heading">
                     <h2>待办事项 Todo</h2>
-                    <p>V2.0 · 改数据 → 保存 → 重渲染</p>
+                    <p>V2.0 + 事件委托 · 改数据 → 保存 → 重渲染</p>
                 </div>
 
                 <div class="todo-bar">
@@ -106,7 +106,7 @@
     </main>
     <footer><p>© 2026 王梓健 · 个人简历</p><p>持续学习，认真记录每一次实践。</p></footer>
 
-    <!-- Week 7: Todo V2.0 脚本。放在 body 末尾，确保 DOM 已加载。 -->
+    <!-- Week 8: 事件委托版 Todo 脚本。放在 body 末尾，确保 DOM 已加载。 -->
     <script>
     (function () {
         'use strict';
@@ -172,6 +172,21 @@
             render();
         }
 
+        // 任务 3（禁用 AI 手写）：编辑分支 —— 改文本，仍走「改数据 → save() → render()」
+        function editTodo(id) {
+            var current = todos.filter(function (t) { return t.id === id; })[0];
+            if (!current) { return; }                            // 找不到就不动数据
+            var text = prompt('修改任务', current.text);
+            if (text === null) { return; }                       // 点了取消
+            text = text.trim();
+            if (text === '') { return; }                         // trim 后为空不改
+            todos = todos.map(function (t) {
+                return t.id === id ? Object.assign({}, t, { text: text }) : t;
+            });
+            save();
+            render();
+        }
+
         function setFilter(f) {
             filter = f;
             render();                            // 视图状态 → 只重渲染，不需要 save()
@@ -187,22 +202,28 @@
 
             shown.forEach(function (t) {
                 var li = document.createElement('li');
-                li.textContent = t.text;
-                li.dataset.id = t.id;
+                li.dataset.id = t.id;                        // ① id 写进 DOM
                 if (t.completed) { li.classList.add('done'); }
 
-                li.addEventListener('click', function () { toggleTodo(t.id); });
+                var span = document.createElement('span');
+                span.textContent = t.text;                   // 任务文字
+
+                var editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'todo-edit';
+                editBtn.textContent = '编辑';
+                editBtn.dataset.action = 'edit';             // ② 标记编辑操作
+                editBtn.setAttribute('aria-label', '编辑：' + t.text);
 
                 var delBtn = document.createElement('button');
                 delBtn.type = 'button';
                 delBtn.className = 'todo-del';
-                delBtn.textContent = '×';
+                delBtn.textContent = '删除';
+                delBtn.dataset.action = 'delete';            // ② 标记删除操作
                 delBtn.setAttribute('aria-label', '删除：' + t.text);
-                delBtn.addEventListener('click', function (e) {
-                    e.stopPropagation();         // 防止顺带触发 li 的点击
-                    removeTodo(t.id);
-                });
 
+                li.appendChild(span);
+                li.appendChild(editBtn);
                 li.appendChild(delBtn);
                 list.appendChild(li);
             });
@@ -211,6 +232,24 @@
             countEl.textContent = '共 ' + todos.length + ' 项 · 未完成 ' +
                 todos.reduce(function (n, t) { return n + (t.completed ? 0 : 1); }, 0) + ' 项';
         }
+
+        // 事件委托：整条列表只在 ul 上挂一个监听器，删除 / 编辑 / 切换统一在这里分流
+        list.addEventListener('click', function (e) {
+            if (!(e.target instanceof Element)) return;          // ① 防：不是元素
+            var item = e.target.closest('li');
+            if (!item || !list.contains(item)) return;           // ②③ 防：空值 / 越界
+            var id = item.dataset.id;
+            if (!id) return;                                     // ④ 防：没有 data-id
+            var delBtn = e.target.closest('[data-action="delete"]');
+            var editBtn = e.target.closest('[data-action="edit"]');
+            if (delBtn && item.contains(delBtn)) {
+                removeTodo(id);                                  // 删除分支
+            } else if (editBtn && item.contains(editBtn)) {
+                editTodo(id);                                    // 编辑分支
+            } else {
+                toggleTodo(id);                                  // 其余情况才切换
+            }
+        });
 
         // 唯一 id：同一毫秒内连续添加也不会撞号
         var seq = 0;

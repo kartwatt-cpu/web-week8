@@ -1,0 +1,5 @@
+# 工具与临时文件不入库
+_tools/
+~$*.docx
+.DS_Store
+Thumbs.db
